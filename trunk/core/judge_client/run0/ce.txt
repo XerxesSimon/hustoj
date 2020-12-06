@@ -1,0 +1,9 @@
+/bin/chown: 无法访问"./run0/": 没有那个文件或目录
+/bin/chmod: 无法访问"./run0/": 没有那个文件或目录
+mount: /root/hustoj/trunk/core/judge_client/run0/bin 忙
+mount: /root/hustoj/trunk/core/judge_client/run0/usr 忙
+mount: /root/hustoj/trunk/core/judge_client/run0/lib 忙
+mount: /root/hustoj/trunk/core/judge_client/run0/lib64 忙
+mount: /root/hustoj/trunk/core/judge_client/run0/etc/alternatives 忙
+/usr/bin/ld：无法打开输出文件 Main：权限不够
+collect2: 错误：ld 返回 1

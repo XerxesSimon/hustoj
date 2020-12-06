@@ -138,7 +138,7 @@ struct user_regs_struct {
 
 #endif
 
-
+#define debug(fmt, ...) printf("[%s] [debug] : " fmt "\t%s() %d\n", __TIME__, ##__VA_ARGS__, __func__, __LINE__)
 
 static int DEBUG = 0;
 static char host_name[BUFFER_SIZE/10];
@@ -416,8 +416,8 @@ bool read_buf(char *buf, const char *key, char *value)
 	{
 		strcpy(value, buf + after_equal(buf));
 		trim(value);
-		if (DEBUG)
-			printf("%s=%s\n", key, value);
+		//if (DEBUG)
+		//	printf("%s=%s\n", key, value);
 		return 1;
 	}
 	return 0;
@@ -455,6 +455,7 @@ FILE *read_cmd_output(const char *fmt, ...)
 // read the configue file
 void init_mysql_conf()
 {
+    debug("Entern:");
 	FILE *fp = NULL;
 	char buf[BUFFER_SIZE];
 	host_name[0] = 0;
@@ -466,8 +467,8 @@ void init_mysql_conf()
 	sleep_time = 3;
 	strcpy(java_xms, "-Xms32m");
 	strcpy(java_xmx, "-Xmx256m");
-	sprintf(buf, "%s/etc/judge.conf", oj_home);
-	fp = fopen("./etc/judge.conf", "re");
+	sprintf(buf, "%s/judge.conf", oj_home);
+	fp = fopen("./judge.conf", "re");
 	if (fp != NULL)
 	{
 		while (fgets(buf, BUFFER_SIZE - 1, fp))
@@ -510,6 +511,7 @@ void init_mysql_conf()
                   pclose(fjobs);
         }
 	if(turbo_mode==2) tbname="solution2";
+    debug("Normal exit");
 }
 
 int isInFile(const char fname[])
@@ -801,6 +803,7 @@ void login()
 void _update_solution_mysql(int solution_id, int result, int time, int memory,
 							int sim, int sim_s_id, double pass_rate)
 {
+    debug("Entern: %d", sim);
 	char sql[BUFFER_SIZE];
 	char judger[BUFFER_SIZE/10];
 	mysql_real_escape_string(conn, judger, http_username, strlen(http_username));
@@ -814,6 +817,9 @@ void _update_solution_mysql(int solution_id, int result, int time, int memory,
 				"UPDATE %s SET result=%d,time=%d,memory=%d,judger='%s',judgetime=now() WHERE solution_id=%d ",
 					tbname,     result, time, memory,judger, solution_id);
 	}
+
+    debug("sql %s", sql);
+
 	//      printf("sql= %s\n",sql);
 	if (mysql_real_query(conn, sql, strlen(sql)))
 	{
@@ -830,6 +836,7 @@ void _update_solution_mysql(int solution_id, int result, int time, int memory,
 			//              printf("..update failed! %s\n",mysql_error(conn));
 		}
 	}
+    debug("Normal exit");
 }
 #endif
 void _update_solution_http(int solution_id, int result, int time, int memory,
@@ -1174,27 +1181,29 @@ void update_problem(int pid,int cid) {
 }
 void umount(char *work_dir)
 {
-	execute_cmd("/bin/umount -f %s/proc 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/dev 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/lib 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/lib64 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/etc/alternatives 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/usr 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/bin 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/proc 2>/dev/null", work_dir);
+    debug("Entern");
+	execute_cmd("/bin/umount -f %sproc 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %sdev 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %slib 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %slib64 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %setc/alternatives 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %susr 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %sbin 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %sproc 2>/dev/null", work_dir);
 	chdir(work_dir);
 	//execute_cmd("/bin/umount -f bin usr lib lib64 etc/alternatives proc dev 2>/dev/null");
-	execute_cmd("/bin/umount -f %s/* 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/log/* 2>/dev/null", work_dir);
-	execute_cmd("/bin/umount -f %s/log/etc/alternatives 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %s* 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %slog/* 2>/dev/null", work_dir);
+	execute_cmd("/bin/umount -f %slog/etc/alternatives 2>/dev/null", work_dir);
+    debug("Normal exit");
 }
 int compile(int lang, char *work_dir)
 {
+    debug("Entern: lang = %d, work_dir = %s", lang, work_dir);
 	if( lang == 6 || lang == 16 ) return 0; // python / js don't compile
 	int pid;
 
-	const char *CP_C[] = {"gcc", "Main.c", "-o", "Main", "-O2", "-fmax-errors=10", "-Wall",
-						  "-lm", "--static", "-std=c99", "-DONLINE_JUDGE", NULL};
+	const char *CP_C[] = {"gcc", "Main.c", "-o", "Main", "-O2",  "-Wall", NULL};
 	const char *CP_X[] = {"g++", "-fno-asm", "-fmax-errors=10", "-Wall",
 						  "-lm", "--static", "-std=c++11", "-DONLINE_JUDGE", "-o", "Main", "Main.cc", NULL};
 	const char *CP_P[] =
@@ -1289,6 +1298,8 @@ int compile(int lang, char *work_dir)
 		execute_cmd("/bin/chown judge %s ", work_dir);
 		execute_cmd("/bin/chmod 700 %s ", work_dir);
 
+        debug("---------------- %d", lang);
+
 		if (compile_chroot && lang != 3 && lang != 9 && lang != 6 && lang != 11)
 		{
 			execute_cmd("mkdir -p bin usr lib lib64 etc/alternatives proc tmp dev");
@@ -1325,7 +1336,11 @@ int compile(int lang, char *work_dir)
 		switch (lang)
 		{
 		case 0:
-			execvp(CP_C[0], (char *const *)CP_C);
+            debug("=============================  lang = c");
+            execute_cmd("pwd");
+            execute_cmd("gcc Main.c -o Main -O2 -Wall");
+			//execvp(CP_C[0], (char *const *)CP_C);
+            // execl("gcc", "Main.c", "-o", "Main", "-O2", "-Wall", NULL);
 			break;
 		case 1:
 			execvp(CP_X[0], (char *const *)CP_X);
@@ -1385,6 +1400,7 @@ int compile(int lang, char *work_dir)
 		if (DEBUG)
 			printf("compile end!\n");
 		//exit(!system("cat ce.txt"));
+        debug("Normal exit");
 		exit(0);
 	}
 	else
@@ -1392,6 +1408,7 @@ int compile(int lang, char *work_dir)
 		int status = 0;
 
 		waitpid(pid, &status, 0);
+
 		if (lang > 3 && lang < 7)
 			status = get_file_size("ce.txt");
 		if (DEBUG)
@@ -1399,6 +1416,7 @@ int compile(int lang, char *work_dir)
 		execute_cmd("/bin/umount -f bin usr lib lib64 etc/alternatives proc dev 2>/dev/null");
 		execute_cmd("/bin/umount -f %s/* 2>/dev/null", work_dir);
 		umount(work_dir);
+        debug("Normal exit");
 
 		return status;
 	}
@@ -1440,7 +1458,7 @@ int get_proc_status(int pid, const char *mark)
 #ifdef _mysql_h
 int init_mysql_conn()
 {
-
+    debug("Enter:");
 	conn = mysql_init(NULL);
 	//mysql_real_connect(conn,host_name,user_name,password,db_name,port_number,0,0);
 	const char timeout = 30;
@@ -1450,14 +1468,17 @@ int init_mysql_conn()
 							port_number, 0, 0))
 	{
 		write_log("%s", mysql_error(conn));
+        debug("Abnormal eixt: %s", mysql_error(conn));
 		return 0;
 	}
 	const char *utf8sql = "set names utf8";
 	if (mysql_real_query(conn, utf8sql, strlen(utf8sql)))
 	{
 		write_log("%s", mysql_error(conn));
+        debug("Abnormal eixt: %s", mysql_error(conn));
 		return 0;
 	}
+    debug("Noraml exit");
 	return 1;
 }
 #endif
@@ -1465,23 +1486,30 @@ int init_mysql_conn()
 #ifdef _mysql_h
 void _get_solution_mysql(int solution_id, char *work_dir, int lang)
 {
+    debug("Entern");
 	char sql[BUFFER_SIZE], src_pth[BUFFER_SIZE];
 	// get the source code
 	MYSQL_RES *res;
 	MYSQL_ROW row;
+
 	sprintf(sql, "SELECT source FROM source_code WHERE solution_id=%d",
 			solution_id);
+    debug("sql %s", sql);
+
 	mysql_real_query(conn, sql, strlen(sql));
 	res = mysql_store_result(conn);
 
 	// create the src file
-	if (DEBUG)
-		printf("Main=%s", src_pth);
+	//if (DEBUG)
+	//	printf("Main=%s", src_pth);
 	if (res != NULL)
 	{
+        debug("get data");
 		row = mysql_fetch_row(res);
 		if(row != NULL) {
+            debug("Main.%s", lang_ext[lang]);
 			sprintf(src_pth, "Main.%s", lang_ext[lang]);
+
 			FILE *fp_src = fopen(src_pth, "we");
 			fprintf(fp_src, "%s", row[0]);
 			mysql_free_result(res); // free the memory
@@ -1490,6 +1518,7 @@ void _get_solution_mysql(int solution_id, char *work_dir, int lang)
 			fclose(fp_src);
 		}
 	}
+    debug("Normal exit");
 }
 #endif
 void _get_solution_http(int solution_id, char *work_dir, int lang)
@@ -1527,7 +1556,7 @@ void get_solution(int solution_id, char *work_dir, int lang)
 	if(lang == 6 ){	
 		py2 = execute_cmd("/bin/grep 'python2' %s/Main.py > /dev/null", work_dir);
 	}
-	execute_cmd("chown judge %s/%s", work_dir, src_pth);
+	//execute_cmd("chown root %s%s", work_dir, src_pth);
 }
 
 #ifdef _mysql_h
@@ -1590,6 +1619,7 @@ void get_custominput(int solution_id, char *work_dir)
 #ifdef _mysql_h
 void _get_solution_info_mysql(int solution_id, int & p_id, char * user_id,
 		int & lang,int &cid) {
+    debug("Entern:");
 
 	MYSQL_RES *res;
 	MYSQL_ROW row;
@@ -1614,6 +1644,7 @@ void _get_solution_info_mysql(int solution_id, int & p_id, char * user_id,
 				"SELECT problem_id, user_id, language,contest_id FROM solution where solution_id=%d",
 				solution_id);
 	}
+    debug("sql: %s", sql);
 	//printf("%s\n",sql);
 	mysql_real_query(conn, sql, strlen(sql));
 	res = mysql_store_result(conn);
@@ -1628,6 +1659,7 @@ void _get_solution_info_mysql(int solution_id, int & p_id, char * user_id,
 		mysql_free_result(res);                         // free the memory
 		res=NULL;
 	}
+    debug("Normal exit");
 }
 #endif
 void _get_solution_info_http(int solution_id, int & p_id, char * user_id,
@@ -1660,6 +1692,7 @@ void get_solution_info(int solution_id, int & p_id, char * user_id,
 void _get_problem_info_mysql(int p_id, double &time_lmt, int &mem_lmt,
 							 int &isspj)
 {
+    debug("Entern:");
 	// get the problem info from Table:problem
 	char sql[BUFFER_SIZE];
 	MYSQL_RES *res;
@@ -1667,17 +1700,28 @@ void _get_problem_info_mysql(int p_id, double &time_lmt, int &mem_lmt,
 	sprintf(sql,
 			"SELECT time_limit,memory_limit,spj FROM problem where problem_id=%d",
 			p_id);
+    debug("sql %s", sql);
 	mysql_real_query(conn, sql, strlen(sql));
+    debug("get problem");
+
 	res = mysql_store_result(conn);
+    if (res == NULL) {
+        debug("res == NULL");
+    } else {
+        debug("res != NULL");
+    }
+
 	row = mysql_fetch_row(res);
 	time_lmt = atof(row[0]);
 	mem_lmt = atoi(row[1]);
 	isspj = (row[2][0] == '1');
+
 	if (res != NULL)
 	{
 		mysql_free_result(res); // free the memory
 		res = NULL;
 	}
+    debug("Normal exit");
 }
 #endif
 void _get_problem_info_http(int p_id, double &time_lmt, int &mem_lmt,
@@ -2831,10 +2875,14 @@ void init_parameters(int argc, char **argv, int &solution_id,
 	else
 		strcpy(oj_home, "/home/judge");
 
+
 	chdir(oj_home); // change the dir// init our work
 
 	solution_id = atoi(argv[1]);
 	runner_id = atoi(argv[2]);
+    debug("oj_home %s", oj_home);
+    debug("solution_id %d", solution_id);
+    debug("runner_id %d", runner_id);
 }
 int get_sim(int solution_id, int lang, int pid, int &sim_s_id)
 {
@@ -2899,12 +2947,15 @@ int count_in_files(char *dirpath)
 
 int get_test_file(char *work_dir, int p_id)
 {
+    debug("Entern");
 	char filename[BUFFER_SIZE/10];
 	char localfile[BUFFER_SIZE];
 	time_t remote_date, local_date;
 	int ret = 0;
 	const char *cmd =
 		" wget --post-data=\"gettestdatalist=1&time=1&pid=%d\" --load-cookies=cookie --save-cookies=cookie --keep-session-cookies -q -O - \"%s/admin/problem_judge.php\"";
+
+    debug("cmd %s", cmd);
 	FILE *fjobs = read_cmd_output(cmd, p_id, http_baseurl);
 	while (fgets(filename, BUFFER_SIZE - 1, fjobs) != NULL)
 	{
@@ -2957,6 +3008,7 @@ int get_test_file(char *work_dir, int p_id)
 	}
 	pclose(fjobs);
 
+    debug("Normal exit");
 	return ret;
 }
 void print_call_array()
@@ -2995,6 +3047,8 @@ int main(int argc, char **argv)
 	char time_space_table[BUFFER_SIZE*100];
 	int time_space_index=0;
 
+    debug("%d", argc);
+
 	init_parameters(argc, argv, solution_id, runner_id);
 
 	init_mysql_conf();
@@ -3006,21 +3060,26 @@ int main(int argc, char **argv)
 	}
 #endif
 	//set work directory to start running & judging
-	sprintf(work_dir, "%s/run%s/", oj_home, argv[2]);
+	sprintf(work_dir, "%srun%s/", oj_home, argv[2]);
+	debug("%s/run%s/", oj_home, argv[2]);
 
+    debug("shm_run == %d", shm_run);
 	if (shm_run){
 		mk_shm_workdir(work_dir);
 	}else{
 		execute_cmd("mkdir %s",work_dir);
 	}
 	
-	clean_workdir(work_dir);
+	// clean_workdir(work_dir);
 	
+    debug("chdir %s", work_dir);
 	chdir(work_dir);
 
 	if (http_judge)
 		system("/bin/ln -s ../cookie ./");
+
 	get_solution_info(solution_id, p_id, user_id, lang,cid);
+    debug("problem_id = %d", p_id);
 	//get the limit
 
 	if (p_id == 0)
@@ -3035,8 +3094,10 @@ int main(int argc, char **argv)
 	}
 	//copy source file
 
+    debug("get_solution");
 	get_solution(solution_id, work_dir, lang);
 
+    debug("deal lang");
 	//java is lucky
 	if (lang >= 3 && lang != 10 && lang != 13 && lang != 14 && lang != 17)
 	{ //ObjectivC Clang Clang++ Go not VM or Script
@@ -3066,7 +3127,9 @@ int main(int argc, char **argv)
 	// set the result to compiling
 	int Compile_OK;
 
+    debug("compile");
 	Compile_OK = compile(lang, work_dir);
+    debug("compile ok = %d", Compile_OK);
 	if (Compile_OK != 0)
 	{
 		addceinfo(solution_id);
@@ -3087,30 +3150,36 @@ int main(int argc, char **argv)
 			update_solution(solution_id, OJ_RI, 0, 0, 0, 0, 0.0);
 		umount(work_dir);
 	}
+    debug("go");
 	//exit(0);
 	// run
 	char fullpath[BUFFER_SIZE];
 	char infile[BUFFER_SIZE/10];
 	char outfile[BUFFER_SIZE/10];
 	char userfile[BUFFER_SIZE/10];
-	sprintf(fullpath, "%s/data/%d", oj_home, p_id); // the fullpath of data dir
+	sprintf(fullpath, "%sdata/%d", oj_home, p_id); // the fullpath of data dir
 
 	// open DIRs
 	DIR *dp;
 	dirent *dirp;
 	// using http to get remote test data files
+    debug("=================open file %s", fullpath);
 	if (p_id > 0 && http_judge && http_download)
 		get_test_file(work_dir, p_id);
+
+    debug("================open file %s", fullpath);
 	if (p_id > 0 && (dp = opendir(fullpath)) == NULL)
 	{
 
-		write_log("No such dir:%s!\n", fullpath);
+        debug("opendir");
+		// write_log("No such dir:%s!\n", fullpath);
 #ifdef _mysql_h
 		if (!http_judge)
 			mysql_close(conn);
 #endif
 		exit(-1);
 	}
+    debug("mysql close");
 
 	int ACflg, PEflg;
 	ACflg = PEflg = OJ_AC;

@@ -88,6 +88,7 @@ static char oj_redisauth[BUFFER_SIZE];
 static char oj_redisqname[BUFFER_SIZE];
 static int turbo_mode = 0;
 
+#define debug(fmt, ...) printf("[%s] [debug] : " fmt "\t%s() %d\n", __TIME__, ##__VA_ARGS__, __func__, __LINE__)
 
 static bool STOP = false;
 static int DEBUG = 0;
@@ -174,8 +175,8 @@ bool read_buf(char * buf, const char * key, char * value) {
 	if (strncmp(buf, key, strlen(key)) == 0) {
 		strcpy(value, buf + after_equal(buf));
 		trim(value);
-		if (DEBUG)
-			printf("%s\n", value);
+		//if (DEBUG)
+		//	printf("%s\n", value);
 		return 1;
 	}
 	return 0;
@@ -188,6 +189,7 @@ void read_int(char * buf, const char * key, int * value) {
 }
 // read the configue file
 void init_mysql_conf() {
+    debug("Entern:");
 	FILE *fp = NULL;
 	char buf[BUFFER_SIZE];
 	host_name[0] = 0;
@@ -201,7 +203,7 @@ void init_mysql_conf() {
 	oj_mod = 0;
 	strcpy(oj_lang_set, "0,1,2,3");
 	strcpy(oj_udpserver, "127.0.0.1");
-	fp = fopen("./etc/judge.conf", "r");
+	fp = fopen("./judge.conf", "r");
 	if (fp != NULL) {
 		while (fgets(buf, BUFFER_SIZE - 1, fp)) {
 			read_buf(buf, "OJ_HOST_NAME", host_name);
@@ -242,9 +244,11 @@ void init_mysql_conf() {
 		sleep_tmp = sleep_time;
 			fclose(fp);
 	}
+    debug("Normal Exit");
 }
 
 void run_client(int runid, int clientid) {
+    debug("Entern");
 	char buf[BUFFER_SIZE], runidstr[BUFFER_SIZE];
 	struct rlimit LIM;
 	LIM.rlim_max = 800;
@@ -282,12 +286,17 @@ void run_client(int runid, int clientid) {
 	//buf[0]=clientid+'0'; buf[1]=0;
 	sprintf(runidstr, "%d", runid);
 	sprintf(buf, "%d", clientid);
+    debug("runidstr %s", runidstr);
+    debug("buf %s", buf);
 
 	//write_log("sid=%s\tclient=%s\toj_home=%s\n",runidstr,buf,oj_home);
 	//sprintf(err,"%s/run%d/error.out",oj_home,clientid);
 	//freopen(err,"a+",stderr);
 
 	//if (!DEBUG)
+	debug("/usr/bin/judge_client"  " /usr/bin/judge_client %s %s %s %p", runidstr, buf,
+				oj_home, (char *) NULL);
+    return;
 		execl("/usr/bin/judge_client", "/usr/bin/judge_client", runidstr, buf,
 				oj_home, (char *) NULL);
 	//else
@@ -295,6 +304,7 @@ void run_client(int runid, int clientid) {
 	//			oj_home, "debug", (char *) NULL);
 
 	//exit(0);
+    debug("Normal exit");
 }
 #ifdef _mysql_h
 int executesql(const char * sql) {
@@ -312,24 +322,35 @@ int executesql(const char * sql) {
 
 #ifdef _mysql_h
 int init_mysql() {
+    debug("Entern");
 	if (conn == NULL) {
+        debug("conn not NULL");
 		conn = mysql_init(NULL);		// init the database connection
 		/* connect the database */
 		const char timeout = 30;
+        debug("mysql_options");
 		mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
+        debug("==========================================");
+        debug("host_name = %s", host_name);
+        debug("user_name = %s", user_name);
+        debug("password = %s", password);
+        debug("db_name = %s", db_name);
+        debug("port_number = %d", port_number);
+        debug("==========================================");
 
-		if (!mysql_real_connect(conn, host_name, user_name, password, db_name,
-				port_number, 0, 0)) {
+		if (!mysql_real_connect(conn, host_name, user_name, password, db_name, port_number, 0, 0)) {
 			if (DEBUG)
 				write_log("%s", mysql_error(conn));
 			sleep(2);
+            debug("Abnormal Exit");
 			return 1;
 		} else {
+            debug("Normal exit");
 			return executesql("set names utf8");
 		}
-	} else {
-			return executesql("commit");
-	}
+	} 
+    debug("Abnormal Exit");
+	return executesql("commit");
 }
 #endif
 FILE * read_cmd_output(const char * fmt, ...) {
@@ -395,6 +416,7 @@ int _get_jobs_http(int * jobs) {
 }
 #ifdef _mysql_h
 int _get_jobs_mysql(int * jobs) {
+    debug("Entern: query = %s", query);
 	if (mysql_real_query(conn, query, strlen(query))) {
 		if (DEBUG)
 			write_log("%s", mysql_error(conn));
@@ -402,20 +424,26 @@ int _get_jobs_mysql(int * jobs) {
 		return 0;
 	}
 	res = mysql_store_result(conn);
+    debug("get result");
 	int i = 0;
 	int ret = 0;
 	while (res!=NULL && (row = mysql_fetch_row(res)) != NULL) {
 		jobs[i++] = atoi(row[0]);
 	}
 
-	if(res!=NULL&&!executesql("commit")){
+    debug("result != Null, i = %d", i);
+
+	if (res!=NULL&&!executesql("commit")) {
 		mysql_free_result(res);                         // free the memory
 		res=NULL;
-	}                        
-	else i=0;
+	} else {
+        i = 0;
+    }
 	ret = i;
-	while (i <= max_running * 2)
+	while (i <= max_running * 2) {
 		jobs[i++] = 0;
+    }
+    debug("Normal Exit");
 	return ret;
 }
 #endif
@@ -458,10 +486,13 @@ int get_jobs(int * jobs) {
 
 #ifdef _mysql_h
 bool _check_out_mysql(int solution_id, int result) {
+    debug("Entern:");
 	char sql[BUFFER_SIZE];
+    result = 1;
 	sprintf(sql,
 			"UPDATE solution SET result=%d,time=0,memory=0,judgetime=NOW() WHERE solution_id=%d and result<2 LIMIT 1",
 			result, solution_id);
+    debug("sql: %s", sql);
 	if (mysql_real_query(conn, sql, strlen(sql))) {
 		syslog(LOG_ERR | LOG_DAEMON, "%s", mysql_error(conn));
 		return false;
@@ -471,7 +502,7 @@ bool _check_out_mysql(int solution_id, int result) {
 		else
 			return false;
 	}
-
+    debug("Normal exit");
 }
 #endif
 
@@ -502,6 +533,7 @@ bool check_out(int solution_id, int result) {
 	static int workcnt = 0;
 int work() {
 //      char buf[1024];
+    debug("Entern:");
 	int retcnt = 0;
 	int i = 0;
 	static pid_t ID[100];
@@ -520,8 +552,10 @@ int work() {
 	if (!get_jobs(jobs)){
 		return 0;
 	}
+    debug("start");
 	/* exec the submit */
 	for (int j = 0; jobs[j] > 0; j++) {
+        debug("calc --------- %d", j);
 		runid = jobs[j];
 		if (runid % oj_tot != oj_mod)
 			continue;
@@ -548,8 +582,8 @@ int work() {
 				ID[i] = fork();                                   // start to fork
 				if (ID[i] == 0) {
 					if (DEBUG){
-						write_log("Judging solution %d", runid);
-						write_log("<<=sid=%d===clientid=%d==>>\n", runid, i);
+						debug("Judging solution %d", runid);
+						debug("<<=sid=%d===clientid=%d==>>", runid, i);
 					}
 					run_client(runid, i);    // if the process is the son, run it
 					workcnt--;
@@ -593,6 +627,7 @@ int work() {
 	}
 	if (DEBUG && retcnt)
 		write_log("<<%ddone!>>", retcnt);
+    debug("Normal Exit");
 	//free(ID);
 	//free(jobs);
 	return retcnt;
@@ -682,17 +717,21 @@ int main(int argc, char** argv) {
 		strcpy(oj_home, argv[1]);
 	else
 		strcpy(oj_home, "/home/judge");
+	//debug("111111111 %s\n", oj_home);
 	chdir(oj_home);    // change the dir
 
 	sprintf(lock_file,"%s/etc/judge.pid",oj_home);
 	if (!DEBUG)
 		daemon_init();
+    /*
 	if ( already_running()) {
+        printf("**********\n");
 		syslog(LOG_ERR | LOG_DAEMON,
 				"This daemon program is already running!\n");
 		printf("%s already has one judged on it!\n",oj_home);
 		return 1;
 	}
+    */
 	if(!DEBUG)
 		system("/sbin/iptables -A OUTPUT -m owner --uid-owner judge -j DROP");
 //	struct timespec final_sleep;
@@ -702,6 +741,7 @@ int main(int argc, char** argv) {
 	init_mysql_conf();	// set the database info
 #endif
 	if(oj_udp){
+	    debug("oj udp 111111111");
 		oj_udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
 		if(oj_udp_fd<0) 
 			printf("udp fd open failed! \n");		
@@ -721,12 +761,15 @@ int main(int argc, char** argv) {
 		if(oj_udp_ret<0) 
 			printf("udp fd open failed! \n");
 	}
+    //debug("------------------");
 	signal(SIGQUIT, call_for_exit);
 	signal(SIGINT, call_for_exit);
 	signal(SIGTERM, call_for_exit);
+    //debug("------------------");
 	int j = 1;
 	int n = 0;
 	while (!STOP) {			// start to run until call for exit
+        debug("===========start===========");
 		n=0;
 		while (j && (http_judge
 #ifdef _mysql_h
@@ -740,25 +783,24 @@ int main(int argc, char** argv) {
 				turbo_mode2();
 				n=0;
 			}
-	
-
+            debug("===========end===========");
 			if(ONCE) break;
 		}
 		turbo_mode2();
 		if(ONCE) break;
-                if(n==0){
-			printf("workcnt:%d\n",workcnt);
-			if(oj_udp&&oj_udp_ret==0){
-				if(STOP) return 1;
-				wait_udp_msg(oj_udp_fd);
-                        	if(DEBUG) printf("udp job ... \n");
-
+            if(n==0){
+			    printf("workcnt:%d\n",workcnt);
+			    if(oj_udp&&oj_udp_ret==0){
+				    if(STOP) return 1;
+				    wait_udp_msg(oj_udp_fd);
+                    if(DEBUG) printf("udp job ... \n");
 			}else{
-                        	sleep(sleep_time);
-                        	if(DEBUG) printf("sleeping ... %ds \n",sleep_time);
+                 sleep(sleep_time);
+                 if(DEBUG) printf("sleeping ... %ds \n",sleep_time);
 			}
                 }
 		j = 1;
+        debug("===========end===========");
 	}
 	return 0;
 }
