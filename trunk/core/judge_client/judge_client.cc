@@ -1245,6 +1245,10 @@ int compile(int lang, char *work_dir)
 	sprintf(CP_J[5], "Main.java");
 	CP_J[6] = (char *)NULL;
 
+    //debug("make start");
+	//execvp(CP_C[0], (char *const *)CP_C);
+    //debug("make end");
+
 	pid = fork();
 	if (pid == 0)
 	{
@@ -1258,8 +1262,13 @@ int compile(int lang, char *work_dir)
 		alarm(cpu);
 		LIM.rlim_max = 100 * STD_MB;
 		LIM.rlim_cur = 100 * STD_MB;
+
+        debug("%u", LIM.rlim_max);
+        debug("%u", LIM.rlim_cur);
+
 		setrlimit(RLIMIT_FSIZE, &LIM);
 
+        debug("---------------------------------------------------------------------------- %d", lang);
 		if (lang == 3 || lang == 17)
 		{
 #ifdef __mips__
@@ -1284,23 +1293,26 @@ int compile(int lang, char *work_dir)
 			LIM.rlim_max = STD_MB << 11 ;
 			LIM.rlim_cur = STD_MB << 11;
 		}
+
+
 		if (lang != 3)
 			setrlimit(RLIMIT_AS, &LIM);
+
 		if (lang != 2 && lang != 11)
 		{
-			freopen("ce.txt", "w", stderr);
+			//freopen("ce.txt", "w", stdout);
 			//freopen("/dev/null", "w", stdout);
 		}
 		else
 		{
-			freopen("ce.txt", "w", stdout);
+			//freopen("ce.txt", "w", stdout);
 		}
-		execute_cmd("/bin/chown judge %s ", work_dir);
-		execute_cmd("/bin/chmod 700 %s ", work_dir);
+		//execute_cmd("/bin/chown judge %s ", work_dir);
+		//execute_cmd("/bin/chmod 700 %s ", work_dir);
 
-        debug("---------------- %d", lang);
 
-		if (compile_chroot && lang != 3 && lang != 9 && lang != 6 && lang != 11)
+            debug("---------------------------------------------------------------------------- %d", lang);
+		if (compile_chroot && lang != 3 && lang != 9 && lang != 6 && lang != 11 && 0)
 		{
 			execute_cmd("mkdir -p bin usr lib lib64 etc/alternatives proc tmp dev");
 			execute_cmd("chown judge *");
@@ -1324,23 +1336,29 @@ int compile(int lang, char *work_dir)
 				//execute_cmd("mount -o remount,ro dev");
 			}
 			//execute_cmd("mount -o remount,ro proc");
-			chroot(work_dir);
+			//chroot(work_dir);
 		}
-		while (setgid(1536) != 0)
-			sleep(1);
-		while (setuid(1536) != 0)
-			sleep(1);
-		while (setresuid(1536, 1536, 1536) != 0)
-			sleep(1);
+
+
+		//while (setgid(1536) != 0)
+		//	sleep(1);
+		//while (setuid(1536) != 0)
+		//	sleep(1);
+		//while (setresuid(1536, 1536, 1536) != 0)
+		//	sleep(1);
+    //debug("make start");
+	//execvp(CP_C[0], (char *const *)CP_C);
+    //debug("make end");
 
 		switch (lang)
 		{
 		case 0:
             debug("=============================  lang = c");
             execute_cmd("pwd");
-            execute_cmd("gcc Main.c -o Main -O2 -Wall");
-			//execvp(CP_C[0], (char *const *)CP_C);
+            //execute_cmd("gcc Main.c -o Main -O2 -Wall");
+			execvp(CP_C[0], (char *const *)CP_C);
             // execl("gcc", "Main.c", "-o", "Main", "-O2", "-Wall", NULL);
+            debug("=============================  lang = c");
 			break;
 		case 1:
 			execvp(CP_X[0], (char *const *)CP_X);
@@ -1397,10 +1415,10 @@ int compile(int lang, char *work_dir)
 		default:
 			printf("nothing to do!\n");
 		}
-		if (DEBUG)
-			printf("compile end!\n");
+		//if (DEBUG)
+		//	printf("compile end!\n");
 		//exit(!system("cat ce.txt"));
-        debug("Normal exit");
+        debug("Normal exit ============================================================================================");
 		exit(0);
 	}
 	else
@@ -2236,6 +2254,7 @@ void copy_js_runtime(char *work_dir)
 void run_solution(int &lang, char *work_dir, double &time_lmt, int &usedtime,
 				  int &mem_lmt)
 {
+    debug("======================run================================");
 	char * const envp[]={(char * const )"PYTHONIOENCODING=utf-8",NULL};
 	nice(19);
 	// now the user is "judger"
@@ -2388,6 +2407,7 @@ void run_solution(int &lang, char *work_dir, double &time_lmt, int &usedtime,
 	}
 	//sleep(1);
 	fflush(stderr);
+    debug("======================run end================================");
 	exit(0);
 }
 int fix_python_mis_judge(char *work_dir, int &ACflg, int &topmemory,
@@ -2603,6 +2623,7 @@ void watch_solution(pid_t pidApp, char *infile, int &ACflg, int isspj,
 					int &topmemory, int mem_lmt, int &usedtime, double time_lmt, int &p_id,
 					int &PEflg, char *work_dir)
 {
+    debug("======================watch================================");
 	// parent
 	int tempmemory = 0;
 
@@ -2830,6 +2851,7 @@ void watch_solution(pid_t pidApp, char *infile, int &ACflg, int isspj,
 	}
 	usedtime += (ruse.ru_utime.tv_sec * 1000 + ruse.ru_utime.tv_usec / 1000) * cpu_compensation;
 	usedtime += (ruse.ru_stime.tv_sec * 1000 + ruse.ru_stime.tv_usec / 1000) * cpu_compensation;
+    debug("======================watch end================================");
 
 	//clean_session(pidApp);
 }
@@ -3167,6 +3189,9 @@ int main(int argc, char **argv)
 	if (p_id > 0 && http_judge && http_download)
 		get_test_file(work_dir, p_id);
 
+	 // execute_cmd("pwd");
+	 execute_cmd("mkdir -p %s", fullpath);
+
     debug("================open file %s", fullpath);
 	if (p_id > 0 && (dp = opendir(fullpath)) == NULL)
 	{
@@ -3250,6 +3275,7 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
+    debug("======================star================================");
 	for (; (oi_mode || ACflg == OJ_AC || ACflg == OJ_PE) && (dirp = readdir(dp)) != NULL;)
 	{
 
@@ -3262,6 +3288,7 @@ int main(int argc, char **argv)
 
 		prepare_files(dirp->d_name, namelen, infile, p_id, work_dir, outfile,
 					  userfile, runner_id);
+
 		if (access(outfile, 0) == -1)
 		{
 			//out file does not exist
