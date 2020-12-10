@@ -199,11 +199,15 @@ void print_arm_regs(long long unsigned int *d){
 }
 int data_list_has(char *file)
 {
+    debug("Enter");
 	for (int i = 0; i < data_list_len; i++)
 	{
-		if (strcmp(data_list[i], file) == 0)
+		if (strcmp(data_list[i], file) == 0) {
+            debug("Normal exit");
 			return 1;
+        }
 	}
+    debug("Abnormal exit");
 	return 0;
 }
 int data_list_add(char *file)
@@ -277,10 +281,9 @@ int call_counter[call_array_size] = {0};
 static char LANG_NAME[BUFFER_SIZE];
 void init_syscalls_limits(int lang)
 {
+    debug("Enter");
 	int i;
 	memset(call_counter, 0, sizeof(call_counter));
-	if (DEBUG)
-		write_log("init_call_counter:%d", lang);
 	if (record_call)
 	{ // recording for debuging
 		for (i = 0; i < call_array_size; i++)
@@ -386,7 +389,7 @@ void init_syscalls_limits(int lang)
 #else
 	call_counter[SYS_execve]= 1;
 #endif
-	printf("SYS_execve:%d\n",SYS_execve);
+	debug("Normal SYS_execve:%d\n",SYS_execve);
 }
 
 int after_equal(char *c)
@@ -1798,6 +1801,7 @@ void prepare_files(char *filename, int namelen, char *infile, int &p_id,
 				   char *work_dir, char *outfile, char *userfile, int runner_id)
 {
 	//              printf("ACflg=%d %d check a file!\n",ACflg,solution_id);
+    debug("Enter");
 
 	char fname0[BUFFER_SIZE];
 	char fname[BUFFER_SIZE];
@@ -1805,12 +1809,16 @@ void prepare_files(char *filename, int namelen, char *infile, int &p_id,
 	fname0[namelen] = 0;
 	escape(fname, fname0);
 	//printf("%s\n%s\n",fname0,fname);
-	sprintf(infile, "%s/data/%d/%s.in", oj_home, p_id, fname);
-	execute_cmd("/bin/cp '%s' %s/data.in", infile, work_dir);
-	execute_cmd("/bin/cp %s/data/%d/*.dic %s/ 2>/dev/null", oj_home, p_id, work_dir);
 
-	sprintf(outfile, "%s/data/%d/%s.out", oj_home, p_id, fname0);
-	sprintf(userfile, "%s/run%d/user.out", oj_home, runner_id);
+	sprintf(infile, "%sdata/%d/%s.in", oj_home, p_id, fname);
+	execute_cmd("cp '%s' ./data.in", infile);
+	//execute_cmd("/bin/cp %s/data/%d/*.dic %s/ 2>/dev/null", oj_home, p_id, work_dir);
+
+	sprintf(outfile, "%sdata/%d/%s.out", oj_home, p_id, fname0);
+	sprintf(userfile, "./user.out");
+    debug("%s", outfile);
+    debug("%s", userfile);
+    debug("Noraml exit");
 }
 
 void copy_shell_runtime(char *work_dir)
@@ -2285,6 +2293,7 @@ void run_solution(int &lang, char *work_dir, double &time_lmt, int &usedtime,
 	while (setresuid(1536, 1536, 1536) != 0)
 		sleep(1);
 
+    debug("======================run end================================");
 	//      char java_p1[BUFFER_SIZE], java_p2[BUFFER_SIZE];
 	// child
 	// set the limit
@@ -2406,6 +2415,7 @@ void run_solution(int &lang, char *work_dir, double &time_lmt, int &usedtime,
 		break;
 	}
 	//sleep(1);
+    debug("======================run end================================");
 	fflush(stderr);
     debug("======================run end================================");
 	exit(0);
@@ -2627,8 +2637,7 @@ void watch_solution(pid_t pidApp, char *infile, int &ACflg, int isspj,
 	// parent
 	int tempmemory = 0;
 
-	if (DEBUG)
-		printf("pid=%d judging %s\n", pidApp, infile);
+    debug("pid=%d judging %s\n", pidApp, infile);
 
 	int status, sig, exitcode;
 	struct user_regs_struct reg;
@@ -3190,7 +3199,8 @@ int main(int argc, char **argv)
 		get_test_file(work_dir, p_id);
 
 	 // execute_cmd("pwd");
-	 execute_cmd("mkdir -p %s", fullpath);
+	 // execute_cmd("mkdir -p %s", fullpath);
+	 execute_cmd("cp -r /data ./");
 
     debug("================open file %s", fullpath);
 	if (p_id > 0 && (dp = opendir(fullpath)) == NULL)
@@ -3275,11 +3285,13 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
-    debug("======================star================================");
+    debug("======================judge star================================");
 	for (; (oi_mode || ACflg == OJ_AC || ACflg == OJ_PE) && (dirp = readdir(dp)) != NULL;)
 	{
 
 		namelen = isInFile(dirp->d_name); // check if the file is *.in or not
+        debug("name %s", dirp->d_name);
+        debug("namelen %d", namelen);
 		if (namelen == 0)
 			continue;
 
@@ -3289,8 +3301,11 @@ int main(int argc, char **argv)
 		prepare_files(dirp->d_name, namelen, infile, p_id, work_dir, outfile,
 					  userfile, runner_id);
 
+        debug("====================== ?? ================================");
+
 		if (access(outfile, 0) == -1)
 		{
+            debug("====================== ?? ================================");
 			//out file does not exist
 			char error[BUFFER_SIZE];
 			sprintf(error, "missing out file %s, report to system administrator!\n", outfile);
@@ -3298,8 +3313,10 @@ int main(int argc, char **argv)
 			ACflg = OJ_RE;
 		}
 
+        debug("====================== ?? ================================");
 		init_syscalls_limits(lang);
 
+        debug("====================== go ================================");
 		pid_t pidApp = fork();
 
 		if (pidApp == 0)
@@ -3344,6 +3361,7 @@ int main(int argc, char **argv)
 			ACflg = OJ_AC;
 		}
 	}
+    debug("======================judge end================================");
 	if (ACflg == OJ_AC && PEflg == OJ_PE)
 		ACflg = OJ_PE;
 	if (sim_enable && ACflg == OJ_AC && (!oi_mode || finalACflg == OJ_AC))
@@ -3387,6 +3405,7 @@ int main(int argc, char **argv)
 		update_solution(solution_id, ACflg, usedtime, topmemory >> 10, sim,
 						sim_s_id, 0);
 	}
+    debug("@@@@@@@@@@@@@@@@@@ ok @@@@@@@@@@@@@@@@@@@@@@@");
 	FILE *df=fopen("diff.out","a");
 	fprintf(df,"time_space_table:\n%s\n",time_space_table);
 	fclose(df);
@@ -3397,8 +3416,7 @@ int main(int argc, char **argv)
 	if(!turbo_mode)update_problem(p_id,cid);
 	clean_workdir(work_dir);
 
-	if (DEBUG)
-		write_log("result=%d", oi_mode ? finalACflg : ACflg);
+	debug("================================result=%d========================================", oi_mode ? finalACflg : ACflg);
 #ifdef _mysql_h
 	if (!http_judge)
 		mysql_close(conn);
@@ -3408,5 +3426,6 @@ int main(int argc, char **argv)
 		print_call_array();
 	}
 	closedir(dp);
+    debug("@@@@@@@@@@@@@@@@@@ end @@@@@@@@@@@@@@@@@@@@@@@");
 	return 0;
 }
